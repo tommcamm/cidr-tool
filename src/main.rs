@@ -8,7 +8,6 @@ use std::process::exit;
 use std::str::FromStr;
 use ipnet::{Ipv4Net};
 
-
 fn main() {
     let args: Vec<String> = env::args().collect();
 
@@ -101,7 +100,17 @@ fn cidr_contain (ipfile : &String, subfile : &String, output :(bool, Option<Stri
 
     // Writing the results in csv if we have the user want
     if output.0 {
-        //TODO: complete output part, *create a function to do so*
+        let outname :String = output.1.unwrap_or(String::from("sub-out.txt"));
+        let mut wrt = csv::Writer::from_path(&outname).unwrap();
+
+        wrt.write_record(["IP CIDR", "COUNT"]).unwrap();
+
+        for &x in &sub_vec {
+            wrt.write_record(&[x.0.to_string(), x.1.to_string()]).unwrap();
+        }
+        wrt.flush().unwrap();
+
+        println!("Result writter to file {}", &outname);
     }
 
 }

@@ -8,3 +8,4 @@ authors = ["Tommaso Cammelli <tomm.camm@protonmail.ch>"]
 
 [dependencies]
 ipnet = "2.5.0"
+csv = "1.1.6"
