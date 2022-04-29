@@ -110,7 +110,7 @@ fn cidr_contain (ipfile : &String, subfile : &String, output :(bool, Option<Stri
         }
         wrt.flush().unwrap();
 
-        println!("Result writter to file {}", &outname);
+        println!("Result written to file {}", &outname);
     }
 
 }
