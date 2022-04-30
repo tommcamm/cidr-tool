@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::fs::File;
+use std::fs::{File, OpenOptions};
 use std::io::{self, BufRead};
 use std::net::{Ipv4Addr};
 use std::ops::Add;
@@ -7,11 +7,14 @@ use std::path::{Path};
 use std::str::FromStr;
 use clap::{arg, command, Command};
 use ipnet::{Ipv4Net};
+use std::io::Write;
 
 fn main() {
     let matches = command!()
+        .about("CLI tool written in rust for helping tasks related to ipv4 CIDR's")
+        .arg_required_else_help(true)
         .arg(arg!(
-            -v --verbose ... "Turns on verbose mode"
+            -d --debug ... "Turns on debug mode"
         ))
         .subcommand(
             Command::new("contains")
@@ -41,8 +44,6 @@ fn main() {
         )
         .get_matches();
 
-
-        // foo
     if let Some(matches) = matches.subcommand_matches("contains") {
         let ipfile = matches.value_of("ipfile").unwrap();
         let subfile = matches.value_of("subfile").unwrap();
@@ -55,8 +56,16 @@ fn main() {
         cidr_contain(&String::from(ipfile), &String::from(subfile),
                      outfile);
     } else if let Some(matches) = matches.subcommand_matches("explode") {
-        let net: Ipv4Net = "52.96.0.0/12".parse().unwrap();
-        subnets_exploder(String::from("sub-list.txt"));
+
+        let subfile = matches.value_of("subfile").unwrap();
+        let outfile :String = match matches.value_of("outfile") {
+            Some(inp) => String::from(inp),
+            None => String::from("cidr-out.csv"),
+        };
+
+        subnets_exploder(String::from(subfile), outfile);
+    } else {
+        println!()
     }
 }
 
@@ -134,7 +143,7 @@ where P: AsRef<Path>, {
     Ok(io::BufReader::new(file).lines())
 }
 
-fn subnets_exploder(subfile :String) {
+fn subnets_exploder(subfile :String, outfile :String) {
     let mut sublist :Vec<Ipv4Net> = Vec::new();
 
     if let Ok(lines) = read_lines(subfile) {
@@ -152,12 +161,27 @@ fn subnets_exploder(subfile :String) {
 
     let mut count :i8 = 0;
     for x in sublist {
-        let fname :String = String::from("tmpip").add(&count.to_string());
+        let fname :String = String::from("/tmp/cidrtmp").add(&count.to_string());
         subnet_explode(x, String::from(fname));
         count += 1;
     }
 
+    let mut opfile = OpenOptions::new()
+        .create(true)
+        .write(true)
+        .append(true)
+        .open(outfile)
+        .unwrap();
 
+    for n in 0..count {
+        if let Ok(lines) = read_lines(String::from("/tmp/cidrtmp").add(&n.to_string())) {
+            for line in lines {
+                if let Ok(ip) = line {
+                    writeln!(opfile,  "{}", ip).unwrap();
+                }
+            }
+        }
+    }
 }
 
 fn subnet_explode(net :Ipv4Net, filename :String) {
