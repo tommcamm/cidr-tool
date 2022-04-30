@@ -8,6 +8,8 @@ use std::str::FromStr;
 use clap::{arg, command, Command};
 use ipnet::{Ipv4Net};
 use std::io::Write;
+use std::thread;
+use std::thread::JoinHandle;
 
 fn main() {
     let matches = command!()
@@ -160,9 +162,13 @@ fn subnets_exploder(subfile :String, outfile :String) {
     }
 
     let mut count :i8 = 0;
+    let mut handle_vec :Vec<JoinHandle<()>> = Vec::new();
+
     for x in sublist {
-        let fname :String = String::from("/tmp/cidrtmp").add(&count.to_string());
-        subnet_explode(x, String::from(fname));
+        handle_vec.push(thread::spawn(move || {
+            let fname :String = String::from("/tmp/cidrtmp").add(&count.to_string());
+            subnet_explode(x, String::from(fname));
+        }));
         count += 1;
     }
 
@@ -172,6 +178,11 @@ fn subnets_exploder(subfile :String, outfile :String) {
         .append(true)
         .open(outfile)
         .unwrap();
+
+    //wait for all threads
+    for x in handle_vec {
+        x.join().unwrap();
+    }
 
     for n in 0..count {
         if let Ok(lines) = read_lines(String::from("/tmp/cidrtmp").add(&n.to_string())) {
