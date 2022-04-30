@@ -175,7 +175,6 @@ fn subnets_exploder(subfile :String, outfile :String) {
     let mut opfile = OpenOptions::new()
         .create(true)
         .write(true)
-        .append(true)
         .open(outfile)
         .unwrap();
 
@@ -185,7 +184,8 @@ fn subnets_exploder(subfile :String, outfile :String) {
     }
 
     for n in 0..count {
-        if let Ok(lines) = read_lines(String::from("/tmp/cidrtmp").add(&n.to_string())) {
+        if let Ok(lines) = read_lines(String::from("/tmp/cidrtmp")
+                .add(&n.to_string())) {
             for line in lines {
                 if let Ok(ip) = line {
                     writeln!(opfile,  "{}", ip).unwrap();
