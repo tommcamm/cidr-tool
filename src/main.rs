@@ -1,15 +1,53 @@
 use std::collections::HashMap;
-use std::env;
 use std::fs::File;
 use std::io::{self, BufRead};
 use std::net::{Ipv4Addr};
-use std::path::Path;
+use std::ops::Add;
+use std::path::{Path, PathBuf};
 use std::process::exit;
 use std::str::FromStr;
+use clap::{Parser, Subcommand};
 use ipnet::{Ipv4Net};
 
+#[derive(Parser)]
+#[clap(author, version, about, long_about = None)]
+struct Cli {
+    /// txt file with the input ip's
+    #[clap(short, long, parse(from_os_str), value_name = "PATH")]
+    ipfile: PathBuf,
+
+    /// txt file with the input subnets
+    #[clap(short, long, parse(from_os_str), value_name = "PATH")]
+    subfile: PathBuf,
+
+    /// output csv file location, default is ./cidr-out.txt
+    #[clap(short, long, parse(from_os_str), value_name = "PATH")]
+    outfile: Option<PathBuf>,
+
+    /// Turn debugging information on
+    #[clap(short, long, parse(from_occurrences))]
+    debug: usize,
+
+    #[clap(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// does testing things
+    Test {
+        /// lists test values
+        #[clap(short, long)]
+        list: bool,
+    },
+}
+
+
+
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    let cli = Cli::parse();
+
+    let args: Vec<String> = Vec::new();
 
     let out_mode :(bool, Option<String>) =
         if args.contains(&String::from("-o"))
@@ -19,6 +57,7 @@ fn main() {
 
 
     if args.len() < 2 {
+        /*
         println!("Ip cidr utiliy written in rust\n");
         println!("USAGE:");
         println!("\tcidrutil [OPTIONS]\n");
@@ -26,6 +65,7 @@ fn main() {
         println!("\t-c, --contains\t<IPFILE>  <SUBFILE>\tChecks if the list of ip in input is contained in the list of subnets");
         println!("\t-e, --explode\t<SUBFILE>\t\tExplodes the subnet addresses in input");
         println!("\t-o, --output\t<OUTFILE>\t\tSave the output in a csv file")
+        */
     } else if args.contains(&String::from("-c"))
         || args.contains(&String::from("--contains")) {
         let ipfile = match args.get(2) {
@@ -44,6 +84,9 @@ fn main() {
         };
 
         cidr_contain(ipfile, subfile, out_mode);
+    } else if args.contains(&String::from("-e")) {
+        let net: Ipv4Net = "52.96.0.0/12".parse().unwrap();
+        subnets_exploder(String::from("sub-list.txt"));
     }
 }
 
@@ -119,4 +162,39 @@ fn read_lines<P> (filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
 where P: AsRef<Path>, {
     let file = File::open(filename)?;
     Ok(io::BufReader::new(file).lines())
+}
+
+fn subnets_exploder(subfile :String) {
+    let mut sublist :Vec<Ipv4Net> = Vec::new();
+
+    if let Ok(lines) = read_lines(subfile) {
+        for line in lines {
+            if let Ok(sub) = line {
+                match Ipv4Net::from_str(&sub) {
+                    Ok(address) => sublist.push(address),
+                    _ => {
+                        eprintln!("[Warning] Skipped unparsable subnet: {}", sub);
+                    }
+                };
+            }
+        }
+    }
+
+    let mut count :i8 = 0;
+    for x in sublist {
+        let fname :String = String::from("tmpip").add(&count.to_string());
+        subnet_explode(x, String::from(fname));
+        count += 1;
+    }
+
+
+}
+
+fn subnet_explode(net :Ipv4Net, filename :String) {
+   let mut wrt = csv::Writer::from_path(&filename).unwrap();
+    for x in net.hosts() {
+        wrt.write_record(&[x.to_string()]).unwrap();
+    }
+
+    wrt.flush().unwrap();
 }
