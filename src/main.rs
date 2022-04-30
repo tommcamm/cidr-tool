@@ -3,94 +3,64 @@ use std::fs::File;
 use std::io::{self, BufRead};
 use std::net::{Ipv4Addr};
 use std::ops::Add;
-use std::path::{Path, PathBuf};
-use std::process::exit;
+use std::path::{Path};
 use std::str::FromStr;
-use clap::{Parser, Subcommand};
+use clap::{arg, command, Command};
 use ipnet::{Ipv4Net};
 
-#[derive(Parser)]
-#[clap(author, version, about, long_about = None)]
-struct Cli {
-    /// txt file with the input ip's
-    #[clap(short, long, parse(from_os_str), value_name = "PATH")]
-    ipfile: PathBuf,
-
-    /// txt file with the input subnets
-    #[clap(short, long, parse(from_os_str), value_name = "PATH")]
-    subfile: PathBuf,
-
-    /// output csv file location, default is ./cidr-out.txt
-    #[clap(short, long, parse(from_os_str), value_name = "PATH")]
-    outfile: Option<PathBuf>,
-
-    /// Turn debugging information on
-    #[clap(short, long, parse(from_occurrences))]
-    debug: usize,
-
-    #[clap(subcommand)]
-    command: Option<Commands>,
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    /// does testing things
-    Test {
-        /// lists test values
-        #[clap(short, long)]
-        list: bool,
-    },
-}
-
-
-
 fn main() {
-    let cli = Cli::parse();
+    let matches = command!()
+        .arg(arg!(
+            -v --verbose ... "Turns on verbose mode"
+        ))
+        .subcommand(
+            Command::new("contains")
+                .about("checks from a given subnet list, how many contains the given ip's")
+                .arg(
+                    arg!(-i --ipfile <FILE> "Path to the ip file")
+                        .required(true),
+                )
+                .arg(
+                    arg!(-s --subfile <FILE> "Path to the subnet file")
+                        .required(true),
+                ).arg(
+                    arg!(-o --outfile <FILE>
+                        "Outputs the result in the specified file")
+                        .required(false)),
+        )
+        .subcommand(
+            Command::new("explode")
+                .about("Explode the subnets given in input in a csv format")
+                .arg(
+                arg!(-s --subfile <FILE> "Path to the subnet file")
+                    .required(true),
+                ).arg(
+                arg!(-o --outfile <FILE>
+                        "Path for the output file [default is ./cidr-out.csv]")
+                    .required(false)),
+        )
+        .get_matches();
 
-    let args: Vec<String> = Vec::new();
 
-    let out_mode :(bool, Option<String>) =
-        if args.contains(&String::from("-o"))
-            {(true, None)}
-        else
-            {(false, None)};
+        // foo
+    if let Some(matches) = matches.subcommand_matches("contains") {
+        let ipfile = matches.value_of("ipfile").unwrap();
+        let subfile = matches.value_of("subfile").unwrap();
 
-
-    if args.len() < 2 {
-        /*
-        println!("Ip cidr utiliy written in rust\n");
-        println!("USAGE:");
-        println!("\tcidrutil [OPTIONS]\n");
-        println!("OPTIONS:");
-        println!("\t-c, --contains\t<IPFILE>  <SUBFILE>\tChecks if the list of ip in input is contained in the list of subnets");
-        println!("\t-e, --explode\t<SUBFILE>\t\tExplodes the subnet addresses in input");
-        println!("\t-o, --output\t<OUTFILE>\t\tSave the output in a csv file")
-        */
-    } else if args.contains(&String::from("-c"))
-        || args.contains(&String::from("--contains")) {
-        let ipfile = match args.get(2) {
-            None => {
-                eprintln!("Invalid number of argument passed");
-                exit(1);
-            },
-            Some(ip) => ip,
+        let outfile :Option<String> = match matches.value_of("outfile") {
+            Some(inp) => Option::from(String::from(inp)),
+            None => None,
         };
-        let subfile = match args.get(3) {
-            None => {
-                eprintln!("Invalid number of argument passed");
-                exit(1);
-            },
-            Some(sub) => sub,
-        };
 
-        cidr_contain(ipfile, subfile, out_mode);
-    } else if args.contains(&String::from("-e")) {
+        cidr_contain(&String::from(ipfile), &String::from(subfile),
+                     outfile);
+    } else if let Some(matches) = matches.subcommand_matches("explode") {
         let net: Ipv4Net = "52.96.0.0/12".parse().unwrap();
         subnets_exploder(String::from("sub-list.txt"));
     }
 }
 
-fn cidr_contain (ipfile : &String, subfile : &String, output :(bool, Option<String>)) {
+fn cidr_contain (ipfile : &String, subfile : &String, output :Option<String>) {
     let mut iplist :Vec<Ipv4Addr> = Vec::new();
     let mut sublist :Vec<Ipv4Net> = Vec::new();
     let mut csublist :HashMap<Ipv4Net, i8> = HashMap::new();
@@ -142,8 +112,8 @@ fn cidr_contain (ipfile : &String, subfile : &String, output :(bool, Option<Stri
     }
 
     // Writing the results in csv if we have the user want
-    if output.0 {
-        let outname :String = output.1.unwrap_or(String::from("sub-out.txt"));
+    if output.is_some() {
+        let outname :String = output.unwrap();
         let mut wrt = csv::Writer::from_path(&outname).unwrap();
 
         wrt.write_record(["IP CIDR", "COUNT"]).unwrap();
