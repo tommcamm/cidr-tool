@@ -115,7 +115,7 @@ fn cidr_contain (ipfile : &String, subfile : &String, output :Option<String>) {
     let mut sub_vec :Vec<_> = csublist.iter().collect();
     sub_vec.sort_by(|a, b| b.1.cmp(a.1));
 
-    println!("IP ADDR\t\t CIDR");
+    println!("IP ADDR\t\t COUNT");
     for &x in &sub_vec {
         println!("{}\t {}", x.0, x.1);
     }
@@ -132,7 +132,7 @@ fn cidr_contain (ipfile : &String, subfile : &String, output :Option<String>) {
         }
         wrt.flush().unwrap();
 
-        println!("Result written to file {}", &outname);
+        println!("\n[Info] Result written to file {}", &outname);
     }
 
 }
