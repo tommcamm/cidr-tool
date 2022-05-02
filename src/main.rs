@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 use std::fs::{File};
-use std::io::{self, BufRead};
 use std::net::{Ipv4Addr};
 use std::ops::Add;
-use std::path::{Path};
 use std::process::exit;
 use std::str::FromStr;
 use clap::{arg, command, Command};
@@ -11,6 +9,8 @@ use ipnet::{Ipv4Net};
 use std::thread;
 use std::thread::JoinHandle;
 use csv::{Reader, ReaderBuilder};
+
+mod utils;
 
 fn main() {
     let matches = command!()
@@ -46,6 +46,7 @@ fn main() {
                     .required(false)),
         )
         .get_matches();
+
 
     if let Some(matches) = matches.subcommand_matches("contains") {
         let ipfile = matches.value_of("ipfile").unwrap();
@@ -188,14 +189,21 @@ fn subnets_exploder(subfile :String, outfile :String) {
     let mut n :i8 = 0;
     for x in handle_vec {
         x.join().unwrap();
-        if let Ok(lines) = read_lines(String::from("/tmp/cidrtmp")
-            .add(&n.to_string())) {
-            for line in lines {
-                if let Ok(ip) = line {
-                    opfile.write_record(&[ip.to_string()]).unwrap();
-                }
+        let temp_path :String = String::from("/tmp/cidrtmp").add(&n.to_string());
+        let mut rdr = match ReaderBuilder::new().has_headers(false)
+            .from_path(temp_path) {
+            Ok(x) => x,
+            Err(_) => {
+                eprintln!("[Error] Unexpected error in thread merge");
+                exit(1);
             }
+        };
+
+        for result in rdr.records() {
+            let record = result.unwrap();
+            opfile.write_record(&[record.get(0).unwrap()]).unwrap();
         }
+
         n += 1;
     }
 
