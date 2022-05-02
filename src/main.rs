@@ -9,6 +9,7 @@ use clap::{arg, command, Command};
 use ipnet::{Ipv4Net};
 use std::thread;
 use std::thread::JoinHandle;
+use csv::{ReaderBuilder};
 
 fn main() {
     let matches = command!()
@@ -65,8 +66,6 @@ fn main() {
         };
 
         subnets_exploder(String::from(subfile), outfile);
-    } else {
-        println!()
     }
 }
 
@@ -144,20 +143,19 @@ where P: AsRef<Path>, {
     Ok(io::BufReader::new(file).lines())
 }
 
+
 fn subnets_exploder(subfile :String, outfile :String) {
     let mut sublist :Vec<Ipv4Net> = Vec::new();
 
-    if let Ok(lines) = read_lines(subfile) {
-        for line in lines {
-            if let Ok(sub) = line {
-                match Ipv4Net::from_str(&sub) {
-                    Ok(address) => sublist.push(address),
-                    _ => {
-                        eprintln!("[Warning] Skipped unparsable subnet: {}", sub);
-                    }
-                };
+    let mut rdr = ReaderBuilder::new().has_headers(false).from_path(subfile).unwrap();
+    for result in rdr.records() {
+        let record = result.unwrap();
+        match Ipv4Net::from_str(&record.get(0).unwrap()) {
+            Ok(address) => sublist.push(address),
+            _ => {
+                eprintln!("[Warning] Skipped unparsable subnet: {}", &record.get(0).unwrap());
             }
-        }
+        };
     }
 
     let mut count :i8 = 0;
