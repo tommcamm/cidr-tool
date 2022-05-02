@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::fs::{File, OpenOptions};
+use std::fs::{File};
 use std::io::{self, BufRead};
 use std::net::{Ipv4Addr};
 use std::ops::Add;
@@ -7,7 +7,6 @@ use std::path::{Path};
 use std::str::FromStr;
 use clap::{arg, command, Command};
 use ipnet::{Ipv4Net};
-use std::io::Write;
 use std::thread;
 use std::thread::JoinHandle;
 
@@ -172,27 +171,23 @@ fn subnets_exploder(subfile :String, outfile :String) {
         count += 1;
     }
 
-    let mut opfile = OpenOptions::new()
-        .create(true)
-        .write(true)
-        .open(outfile)
-        .unwrap();
+    let mut opfile = csv::Writer::from_path(outfile).unwrap();
 
     //wait for all threads
+    let mut n :i8 = 0;
     for x in handle_vec {
         x.join().unwrap();
-    }
-
-    for n in 0..count {
         if let Ok(lines) = read_lines(String::from("/tmp/cidrtmp")
-                .add(&n.to_string())) {
+            .add(&n.to_string())) {
             for line in lines {
                 if let Ok(ip) = line {
-                    writeln!(opfile,  "{}", ip).unwrap();
+                    opfile.write_record(&[ip.to_string()]).unwrap();
                 }
             }
         }
+        n += 1;
     }
+    opfile.flush().unwrap();
 }
 
 fn subnet_explode(net :Ipv4Net, filename :String) {
