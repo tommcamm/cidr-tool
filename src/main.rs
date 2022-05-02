@@ -71,10 +71,9 @@ fn main() {
 }
 
 fn cidr_contain (ipfile : &String, subfile : &String, output :Option<String>) {
-    let mut sublist :Vec<Ipv4Net> = Vec::new();
     let mut csublist :HashMap<Ipv4Net, i8> = HashMap::new();
 
-    let mut rdr = match ReaderBuilder::new().has_headers(false)
+    let rdr = match ReaderBuilder::new().has_headers(false)
         .from_path(ipfile) {
         Ok(x) => x,
         Err(_) => {
@@ -83,33 +82,18 @@ fn cidr_contain (ipfile : &String, subfile : &String, output :Option<String>) {
         }
     };
 
-    let iplist :Vec<Ipv4Addr> = iplist(rdr);
-
-    if let Ok(lines) = read_lines(ipfile) {
-        for line in lines {
-            if let Ok(ip) = line {
-                match Ipv4Addr::from_str(&ip) {
-                    Ok(address) => iplist.push(address),
-                    _ => {
-                        eprintln!("[Warning] Skipped unparsable address, {}", ip);
-                    }
-                };
-            }
+    let iplist :Vec<Ipv4Addr> = read_ips(rdr);
+    let rdr = match ReaderBuilder::new().has_headers(false)
+        .from_path(subfile) {
+        Ok(x) => x,
+        Err(_) => {
+            eprintln!("[Error] Invalid subnet file path!");
+            exit(1);
         }
-    }
+    };
 
-    if let Ok(lines) = read_lines(subfile) {
-        for line in lines {
-            if let Ok(sub) = line {
-                match Ipv4Net::from_str(&sub) {
-                    Ok(address) => sublist.push(address),
-                    _ => {
-                        eprintln!("[Warning] Skipped unparsable subnet: {}", sub);
-                    }
-                };
-            }
-        }
-    }
+    let sublist :Vec<Ipv4Net> = read_subs(rdr);
+
 
     for ip in &iplist {
         for sub in &sublist {
@@ -148,7 +132,7 @@ fn cidr_contain (ipfile : &String, subfile : &String, output :Option<String>) {
 
 }
 
-fn read_ips(mut reader :&Reader<File>) -> Vec<Ipv4Addr> {
+fn read_ips(mut reader :Reader<File>) -> Vec<Ipv4Addr> {
     let mut iplist :Vec<Ipv4Addr> = Vec::new();
     for result in reader.records() {
         let record = result.unwrap();
@@ -162,12 +146,12 @@ fn read_ips(mut reader :&Reader<File>) -> Vec<Ipv4Addr> {
     iplist
 }
 
-fn read_subs(mut reader :&Reader<File>) -> Vec<Ipv4Net> {
+fn read_subs(mut reader :Reader<File>) -> Vec<Ipv4Net> {
     let mut sublist :Vec<Ipv4Net> = Vec::new();
     for result in reader.records() {
         let record = result.unwrap();
         match Ipv4Net::from_str(&record.get(0).unwrap()) {
-            Ok(address) => iplist.push(address),
+            Ok(address) => sublist.push(address),
             Err(_) => {
                 eprintln!("[Warning] Skipped unparsable subnet: {}", &record.get(0).unwrap());
             }
@@ -176,32 +160,16 @@ fn read_subs(mut reader :&Reader<File>) -> Vec<Ipv4Net> {
     sublist
 }
 
-fn read_lines<P> (filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
-where P: AsRef<Path>, {
-    let file = File::open(filename)?;
-    Ok(io::BufReader::new(file).lines())
-}
-
-
 fn subnets_exploder(subfile :String, outfile :String) {
-    let mut sublist :Vec<Ipv4Net> = Vec::new();
-
-    let mut rdr = match ReaderBuilder::new().has_headers(false).from_path(subfile) {
+    let rdr = match ReaderBuilder::new().has_headers(false).from_path(subfile) {
         Ok(x) => x,
         Err(_e) => {
             eprintln!("[ERROR] Subnet file path is not valid!");
             exit(1);
         },
     };
-    for result in rdr.records() {
-        let record = result.unwrap();
-        match Ipv4Net::from_str(&record.get(0).unwrap()) {
-            Ok(address) => sublist.push(address),
-            _ => {
-                eprintln!("[Warning] Skipped unparsable subnet: {}", &record.get(0).unwrap());
-            }
-        };
-    }
+
+    let sublist :Vec<Ipv4Net> = read_subs(rdr);
 
     let mut count :i8 = 0;
     let mut handle_vec :Vec<JoinHandle<()>> = Vec::new();
