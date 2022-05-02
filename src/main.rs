@@ -10,7 +10,7 @@ use clap::{arg, command, Command};
 use ipnet::{Ipv4Net};
 use std::thread;
 use std::thread::JoinHandle;
-use csv::{ReaderBuilder};
+use csv::{Reader, ReaderBuilder};
 
 fn main() {
     let matches = command!()
@@ -71,9 +71,19 @@ fn main() {
 }
 
 fn cidr_contain (ipfile : &String, subfile : &String, output :Option<String>) {
-    let mut iplist :Vec<Ipv4Addr> = Vec::new();
     let mut sublist :Vec<Ipv4Net> = Vec::new();
     let mut csublist :HashMap<Ipv4Net, i8> = HashMap::new();
+
+    let mut rdr = match ReaderBuilder::new().has_headers(false)
+        .from_path(ipfile) {
+        Ok(x) => x,
+        Err(_) => {
+            eprintln!("[Error] Invalid ip file path!");
+            exit(1);
+        }
+    };
+
+    let iplist :Vec<Ipv4Addr> = iplist(rdr);
 
     if let Ok(lines) = read_lines(ipfile) {
         for line in lines {
@@ -136,6 +146,20 @@ fn cidr_contain (ipfile : &String, subfile : &String, output :Option<String>) {
         println!("\n[Info] Result written to file {}", &outname);
     }
 
+}
+
+fn read_ips(mut reader :&Reader<File>) -> Vec<Ipv4Addr> {
+    let mut iplist :Vec<Ipv4Addr> = Vec::new();
+    for result in reader.records() {
+        let record = result.unwrap();
+        match Ipv4Addr::from_str(&record.get(0).unwrap()) {
+            Ok(address) => iplist.push(address),
+            Err(_) => {
+                eprintln!("[Warning] Skipped unparsable ip: {}", &record.get(0).unwrap());
+            }
+        }
+    }
+    iplist
 }
 
 fn read_lines<P> (filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
