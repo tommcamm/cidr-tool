@@ -4,6 +4,7 @@ use std::io::{self, BufRead};
 use std::net::{Ipv4Addr};
 use std::ops::Add;
 use std::path::{Path};
+use std::process::exit;
 use std::str::FromStr;
 use clap::{arg, command, Command};
 use ipnet::{Ipv4Net};
@@ -147,7 +148,13 @@ where P: AsRef<Path>, {
 fn subnets_exploder(subfile :String, outfile :String) {
     let mut sublist :Vec<Ipv4Net> = Vec::new();
 
-    let mut rdr = ReaderBuilder::new().has_headers(false).from_path(subfile).unwrap();
+    let mut rdr = match ReaderBuilder::new().has_headers(false).from_path(subfile) {
+        Ok(x) => x,
+        Err(_e) => {
+            eprintln!("[ERROR] Subnet file path is not valid!");
+            exit(1);
+        },
+    };
     for result in rdr.records() {
         let record = result.unwrap();
         match Ipv4Net::from_str(&record.get(0).unwrap()) {
