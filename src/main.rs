@@ -175,7 +175,7 @@ fn subnets_exploder(subfile :String, outfile :String) {
     let mut opfile = OpenOptions::new()
         .create(true)
         .write(true)
-        .open(outfile)
+        .open(&outfile)
         .unwrap();
 
     //wait for all threads
@@ -193,6 +193,8 @@ fn subnets_exploder(subfile :String, outfile :String) {
             }
         }
     }
+
+    println!("subnet explosion finished, results written to {}", outfile);
 }
 
 fn subnet_explode(net :Ipv4Net, filename :String) {
