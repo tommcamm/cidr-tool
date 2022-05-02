@@ -162,6 +162,20 @@ fn read_ips(mut reader :&Reader<File>) -> Vec<Ipv4Addr> {
     iplist
 }
 
+fn read_subs(mut reader :&Reader<File>) -> Vec<Ipv4Net> {
+    let mut sublist :Vec<Ipv4Net> = Vec::new();
+    for result in reader.records() {
+        let record = result.unwrap();
+        match Ipv4Net::from_str(&record.get(0).unwrap()) {
+            Ok(address) => iplist.push(address),
+            Err(_) => {
+                eprintln!("[Warning] Skipped unparsable subnet: {}", &record.get(0).unwrap());
+            }
+        }
+    }
+    sublist
+}
+
 fn read_lines<P> (filename: P) -> io::Result<io::Lines<io::BufReader<File>>>
 where P: AsRef<Path>, {
     let file = File::open(filename)?;
